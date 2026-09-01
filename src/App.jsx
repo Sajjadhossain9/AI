@@ -39,6 +39,7 @@ const categoryIcons = {
 
 const featuredNames = ['ChatGPT', 'Claude', 'Turnitin', 'Semrush', 'Canva Pro', 'GitHub Copilot', 'YouTube Premium', 'SciSpace']
 const slugify = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+const money = (value) => Number(value).toLocaleString('en-BD')
 
 function App() {
   const [activeCategory, setActiveCategory] = useState('All')
@@ -76,8 +77,14 @@ function App() {
 
   const priceLabel = (product) => {
     const available = productPlans(product)
-    const priced = available.filter((plan) => plan.price !== null).map((plan) => Number(plan.price))
-    if (priced.length) return `৳${Math.min(...priced).toLocaleString('en-BD')}`
+    const priced = available.filter((plan) => plan.price !== null)
+    if (priced.length) {
+      const minimum = Math.min(...priced.map((plan) => Number(plan.price)))
+      const maximum = Math.max(...priced.map((plan) => Number(plan.price_max ?? plan.price)))
+      return maximum > minimum
+        ? `৳${money(minimum)}–৳${money(maximum)}`
+        : `৳${money(minimum)}`
+    }
     if (available.length) return 'Price coming soon'
     return 'Price pending'
   }
@@ -198,7 +205,7 @@ function App() {
                     <div className="product-meta">{product.category}</div>
                     <h3>{product.name}</h3>
                     <p>{product.description}</p>
-                    <div className="store-price"><span>Starting from</span><strong>{priceLabel(product)}</strong></div>
+                    <div className="store-price"><span>Price</span><strong>{priceLabel(product)}</strong></div>
                     <div className="store-actions">
                       <button className="buy-now-button" onClick={() => buyNow(product)}>Buy Now <ArrowRight size={16} /></button>
                       <button className="add-cart-button" onClick={() => addToCart(product)}><ShoppingBag size={16} /> {cart.some((item) => item.name === product.name) ? 'Added' : 'Add to Cart'}</button>
@@ -216,7 +223,7 @@ function App() {
           <div className="section-heading centered narrow"><div className="eyebrow"><span></span> Simple checkout</div><h2>No login. Just choose, pay and order.</h2><p>The storefront is intentionally simple for buyers.</p></div>
           <div className="feature-grid">
             <div className="feature-card"><span><ShoppingBag /></span><h3>1. Choose product</h3><p>Tap Buy Now for one tool or Add to Cart for multiple tools.</p></div>
-            <div className="feature-card"><span><Zap /></span><h3>2. Choose plan</h3><p>Select the available duration and see the exact total in checkout.</p></div>
+            <div className="feature-card"><span><Zap /></span><h3>2. Choose plan</h3><p>Select the available duration and see the price or price range in checkout.</p></div>
             <div className="feature-card"><span><ShieldCheck /></span><h3>3. Submit order</h3><p>Enter your name, phone and payment reference. No account creation required.</p></div>
           </div>
         </section>
@@ -224,7 +231,7 @@ function App() {
         <section className="section-wrap section" id="faq">
           <div className="faq-layout"><div className="section-heading"><div className="eyebrow"><span></span> FAQ</div><h2>Questions, answered.</h2><p>Quick information before buying.</p></div><div className="faq-list">
             <details open><summary>Do I need an account?<ChevronDown size={18} /></summary><p>No. Customers can use Buy Now or Cart and submit an order without signing up or logging in.</p></details>
-            <details><summary>Where do prices come from?<ChevronDown size={18} /></summary><p>Prices are stored in the shop database. When a price is set, it automatically appears on the product card and checkout.</p></details>
+            <details><summary>Where do prices come from?<ChevronDown size={18} /></summary><p>Prices are stored in the shop database. Fixed prices and price ranges automatically appear on the product card and checkout.</p></details>
             <details><summary>Can I buy multiple tools together?<ChevronDown size={18} /></summary><p>Yes. Add multiple products to the cart and complete them in one checkout.</p></details>
             <details><summary>How is payment verified?<ChevronDown size={18} /></summary><p>Customer can submit the payment method and transaction/reference ID with the order.</p></details>
           </div></div>
