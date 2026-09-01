@@ -7,9 +7,8 @@ const slugify = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').repla
 function CheckoutModal({ cart, plans, onClose, onSuccess }) {
   const [customer, setCustomer] = useState({
     name: '',
-    email: '',
     phone: '',
-    paymentMethod: 'Manual payment',
+    paymentMethod: 'bKash',
     paymentReference: '',
     notes: '',
   })
@@ -33,18 +32,18 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
   }), [cart, plans, selectedPlans])
 
   const subtotal = pricedItems.reduce((sum, row) => sum + (Number(row.selected?.price) || 0), 0)
-  const hasQuoteItems = pricedItems.some((row) => row.selected && row.selected.price === null)
+  const hasMissingPrices = pricedItems.some((row) => row.selected && row.selected.price === null)
 
   const submit = async (event) => {
     event.preventDefault()
     setError('')
 
     if (!supabaseConfigured) {
-      setError('Supabase connection is not configured yet. Add the environment variables first.')
+      setError('Store backend is not connected yet.')
       return
     }
-    if (!customer.name || !customer.email || !customer.phone) {
-      setError('Name, email and phone are required.')
+    if (!customer.name || !customer.phone) {
+      setError('Name and phone are required.')
       return
     }
     if (pricedItems.some((row) => !row.selected)) {
@@ -56,7 +55,6 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
     try {
       const data = await createOrder({
         customer_name: customer.name.trim(),
-        email: customer.email.trim().toLowerCase(),
         phone: customer.phone.trim(),
         payment_method: customer.paymentMethod,
         payment_reference: customer.paymentReference.trim() || null,
@@ -79,7 +77,7 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
           <CheckCircle2 size={46} />
           <small>Order received</small>
           <h2>{result.order_code}</h2>
-          <p>{result.status === 'quote_requested' ? 'Your order needs a price quote. You can use the order code to check its status.' : 'Your order has been created. Keep this code to check the status later.'}</p>
+          <p>Your order has been submitted successfully. Save this order code for support.</p>
           <div className="order-summary-box">
             <span>Status <strong>{String(result.status).replaceAll('_', ' ')}</strong></span>
             <span>Total <strong>{result.currency} {Number(result.subtotal || 0).toFixed(2)}</strong></span>
@@ -94,7 +92,7 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
     <div className="commerce-overlay" role="dialog" aria-modal="true">
       <div className="commerce-modal checkout-modal">
         <div className="commerce-modal-head">
-          <div><small>Secure order form</small><h2>Checkout</h2></div>
+          <div><small>No login required</small><h2>Checkout</h2></div>
           <button onClick={onClose} aria-label="Close checkout"><X /></button>
         </div>
 
@@ -102,19 +100,16 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
           <div className="checkout-layout">
             <div className="checkout-form-panel">
               <h3>Customer information</h3>
-              <div className="field-grid two">
-                <label><span>Full name</span><input value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="Your name" /></label>
-                <label><span>Email</span><input type="email" value={customer.email} onChange={(e) => setCustomer({ ...customer, email: e.target.value })} placeholder="you@example.com" /></label>
-              </div>
-              <label><span>Phone</span><input value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="Phone number" /></label>
+              <label><span>Full name</span><input value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} placeholder="Your name" /></label>
+              <label><span>Phone / WhatsApp</span><input value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} placeholder="01XXXXXXXXX" /></label>
 
               <h3>Payment information</h3>
               <div className="field-grid two">
-                <label><span>Payment method</span><select value={customer.paymentMethod} onChange={(e) => setCustomer({ ...customer, paymentMethod: e.target.value })}><option>Manual payment</option><option>Bank transfer</option><option>Other</option></select></label>
-                <label><span>Transaction / reference</span><input value={customer.paymentReference} onChange={(e) => setCustomer({ ...customer, paymentReference: e.target.value })} placeholder="Optional for quote requests" /></label>
+                <label><span>Payment method</span><select value={customer.paymentMethod} onChange={(e) => setCustomer({ ...customer, paymentMethod: e.target.value })}><option>bKash</option><option>Nagad</option><option>Bank transfer</option><option>Other</option></select></label>
+                <label><span>Transaction / reference ID</span><input value={customer.paymentReference} onChange={(e) => setCustomer({ ...customer, paymentReference: e.target.value })} placeholder="Optional until payment" /></label>
               </div>
-              <label><span>Order note</span><textarea rows="3" value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="Account email, preferred setup method, or other note" /></label>
-              <div className="policy-note"><ShieldCheck size={18} /><span>Only provider-permitted reseller, affiliate, business, API or customer-owned-account activation methods should be fulfilled.</span></div>
+              <label><span>Order note</span><textarea rows="3" value={customer.notes} onChange={(e) => setCustomer({ ...customer, notes: e.target.value })} placeholder="Account email or setup note if needed" /></label>
+              <div className="policy-note"><ShieldCheck size={18} /><span>No customer login or account creation is required for checkout.</span></div>
               {error && <div className="form-error">{error}</div>}
             </div>
 
@@ -126,15 +121,15 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
                     <div><strong>{item.name}</strong><small>{item.category}</small></div>
                     {available.length > 0 ? (
                       <select value={selected?.id || ''} onChange={(e) => setSelectedPlans({ ...selectedPlans, [item.name]: e.target.value })}>
-                        {available.map((plan) => <option key={plan.id} value={plan.id}>{plan.label}{plan.price === null ? ' · Quote' : ` · ${plan.currency} ${Number(plan.price).toFixed(2)}`}</option>)}
+                        {available.map((plan) => <option key={plan.id} value={plan.id}>{plan.label}{plan.price === null ? ' · Price pending' : ` · ৳${Number(plan.price).toLocaleString('en-BD')}`}</option>)}
                       </select>
                     ) : <small className="missing-plan">No active plan</small>}
                   </div>
                 ))}
               </div>
-              <div className="checkout-total"><span>{hasQuoteItems ? 'Priced subtotal' : 'Subtotal'}</span><strong>BDT {subtotal.toFixed(2)}</strong></div>
-              {hasQuoteItems && <p className="quote-note">One or more items are set to “Quote”. Final amount will be confirmed before fulfillment.</p>}
-              <button className="primary-button full" type="submit" disabled={submitting || cart.length === 0}>{submitting ? <><Loader2 className="spin" size={18} /> Creating order...</> : <>Place order <ArrowRight size={18} /></>}</button>
+              <div className="checkout-total"><span>Total</span><strong>৳{subtotal.toLocaleString('en-BD')}</strong></div>
+              {hasMissingPrices && <p className="quote-note">One or more selected plans do not have a selling price yet. Set those prices before taking live orders.</p>}
+              <button className="primary-button full" type="submit" disabled={submitting || cart.length === 0 || hasMissingPrices}>{submitting ? <><Loader2 className="spin" size={18} /> Creating order...</> : <>Place order <ArrowRight size={18} /></>}</button>
             </div>
           </div>
         </form>
