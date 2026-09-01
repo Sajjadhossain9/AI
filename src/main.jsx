@@ -8,7 +8,8 @@ import './simple-store.css'
 import './admin-portal.css'
 
 const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
-const Root = normalizedPath === '/admin' ? AdminPanel : App
+const isAdmin = normalizedPath.endsWith('/admin') || window.location.hash === '#/admin' || new URLSearchParams(window.location.search).get('admin') === '1'
+const Root = isAdmin ? AdminPanel : App
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
