@@ -4,6 +4,15 @@ import { createOrder, supabaseConfigured } from '../lib/supabase'
 
 const slugify = (value) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
+const formatPlanPrice = (plan) => {
+  if (!plan || plan.price === null) return 'Price coming soon'
+  const min = Number(plan.price)
+  const max = plan.price_max === null || plan.price_max === undefined ? min : Number(plan.price_max)
+  return max > min
+    ? `৳${min.toLocaleString('en-BD')}–৳${max.toLocaleString('en-BD')}`
+    : `৳${min.toLocaleString('en-BD')}`
+}
+
 function CheckoutModal({ cart, plans, onClose, onSuccess }) {
   const [customer, setCustomer] = useState({
     name: '',
@@ -33,6 +42,11 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
 
   const subtotal = pricedItems.reduce((sum, row) => sum + (Number(row.selected?.price) || 0), 0)
   const hasMissingPrices = pricedItems.some((row) => row.selected && row.selected.price === null)
+  const hasRangePrices = pricedItems.some((row) => {
+    const min = Number(row.selected?.price || 0)
+    const max = Number(row.selected?.price_max || min)
+    return max > min
+  })
 
   const submit = async (event) => {
     event.preventDefault()
@@ -77,10 +91,10 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
           <CheckCircle2 size={46} />
           <small>Order received</small>
           <h2>{result.order_code}</h2>
-          <p>Your order has been submitted successfully. Save this order code for support.</p>
+          <p>{result.status === 'quote_requested' ? 'Your order was received. Final price will be confirmed before payment/activation.' : 'Your order has been submitted successfully. Save this order code for support.'}</p>
           <div className="order-summary-box">
             <span>Status <strong>{String(result.status).replaceAll('_', ' ')}</strong></span>
-            <span>Total <strong>{result.currency} {Number(result.subtotal || 0).toFixed(2)}</strong></span>
+            <span>{result.status === 'quote_requested' ? 'Minimum total' : 'Total'} <strong>{result.currency} {Number(result.subtotal || 0).toFixed(2)}</strong></span>
           </div>
           <button className="primary-button full" onClick={onClose}>Done</button>
         </div>
@@ -121,15 +135,16 @@ function CheckoutModal({ cart, plans, onClose, onSuccess }) {
                     <div><strong>{item.name}</strong><small>{item.category}</small></div>
                     {available.length > 0 ? (
                       <select value={selected?.id || ''} onChange={(e) => setSelectedPlans({ ...selectedPlans, [item.name]: e.target.value })}>
-                        {available.map((plan) => <option key={plan.id} value={plan.id}>{plan.label}{plan.price === null ? ' · Price pending' : ` · ৳${Number(plan.price).toLocaleString('en-BD')}`}</option>)}
+                        {available.map((plan) => <option key={plan.id} value={plan.id}>{plan.label} · {formatPlanPrice(plan)}</option>)}
                       </select>
                     ) : <small className="missing-plan">No active plan</small>}
                   </div>
                 ))}
               </div>
-              <div className="checkout-total"><span>Total</span><strong>৳{subtotal.toLocaleString('en-BD')}</strong></div>
-              {hasMissingPrices && <p className="quote-note">One or more selected plans do not have a selling price yet. Set those prices before taking live orders.</p>}
-              <button className="primary-button full" type="submit" disabled={submitting || cart.length === 0 || hasMissingPrices}>{submitting ? <><Loader2 className="spin" size={18} /> Creating order...</> : <>Place order <ArrowRight size={18} /></>}</button>
+              <div className="checkout-total"><span>{hasRangePrices ? 'Minimum subtotal' : 'Total'}</span><strong>৳{subtotal.toLocaleString('en-BD')}</strong></div>
+              {hasRangePrices && <p className="quote-note">A selected plan has a price range. Final amount will be confirmed before payment or activation.</p>}
+              {hasMissingPrices && <p className="quote-note">One or more selected plans do not have a selling price yet. Final price will be confirmed before fulfillment.</p>}
+              <button className="primary-button full" type="submit" disabled={submitting || cart.length === 0}>{submitting ? <><Loader2 className="spin" size={18} /> Creating order...</> : <>Place order <ArrowRight size={18} /></>}</button>
             </div>
           </div>
         </form>
