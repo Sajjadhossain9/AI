@@ -18,7 +18,7 @@ export async function fetchPlans() {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('product_plans')
-    .select('id, product_slug, label, duration_days, price, currency, active')
+    .select('id, product_slug, label, duration_days, price, price_max, currency, active')
     .eq('active', true)
     .order('product_slug')
     .order('duration_days')
